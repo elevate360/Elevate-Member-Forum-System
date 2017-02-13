@@ -1,0 +1,24 @@
+
+.rcp_form{
+
+}
+.rcp_form .form-field span{
+	display: block;
+}
+.rcp_form .form-field.inline .wrap{
+	display: inline-block;
+	margin-right: 10px;
+}
+.rcp_form .form-field.inline label{
+	display: inline-block;
+}
+.rcp_form .form-field.inline input{
+	display: inline-block;
+	margin-right: 7px;
+}
+
+
+
+
+
+
