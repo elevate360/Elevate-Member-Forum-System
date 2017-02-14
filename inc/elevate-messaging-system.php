@@ -82,10 +82,15 @@
 				$successfully_assigned = add_user_meta($user->ID, 'practitioner_id', $practitioner->ID);
 				if($successfully_assigned){
 					
+					
+					//send out the practitioner assignment email
+					$response['email'] = $this->send_practitoner_assign_email($practitioner->ID, $user->ID);
+					
+					
 					//create a pretty response to show the user 
 					$content = '';
 					$content .= '<div class="el-notice el-notice-success">';
-						$content .= 'You have successfully been assigned this practitioner. You can send this person topics by navigating back to the dashboard';
+						$content .= 'You have successfully been assigned this practitioner. You can send this person topics by navigating to the forum and selecting <b>\'Private Topic\'</b>';
 					$content .= '</div>';
 					
 					$response['status'] = 'success';
@@ -95,8 +100,7 @@
 					$response['status'] = 'error';
 					$response['message'] = 'Couldnt assign practitioner to user, failed at update_user_meta';
 				}
-				
-				
+
 			}else{
 				$response['status'] = 'error';
 				$response['message'] = 'Practitioner and or user id supplied, but users dont exist';
@@ -148,8 +152,6 @@
 				
 				
 				$post = get_posts($current_reply_args);
-
-				
 				$number_of_post = count($post);
 				
 				if($number_of_post == 0){
@@ -178,11 +180,11 @@
 					$response['status'] = 'success';
 					$response['message'] = 'successfully added reply #' . $post_id . ' to topic #' . $topic_id;
 					$response['reply_id'] = $post_id;
-					
+
 					//TODO: Refactor into a separate ajax call to make process faster
 					//After successful reply, trigger our email and return a status
 					$response['mail'] = $this->send_topic_reply_email($topic_id, $post_id);
-			
+
 				}else{
 					$response['status'] = 'error';
 					$response['message'] = 'There was an issue inserting your reply';
@@ -414,7 +416,11 @@
 					//if we have an assigned practitioner (private topic)
 					if($topic_privacy == 'private'){
 						if($topic_assigned_practitioner){
+							//Assign metadata
 							add_post_meta($post_id, 'topic_assigned_practitioner', $topic_assigned_practitioner);
+							
+							//Send out practitioner email
+							$response['email'] = $this->send_new_topic_private_pracitioner($post_id, $topic_assigned_practitioner);
 						}
 					}
 
@@ -607,7 +613,8 @@
 		if($practitioner_id){
 			
 			//TODO: Not hard code this in
-			$url = 'http://nutrition.dev.elevate360.com.au/dashboard/dietitions/dietition/?practitioner_id=' . $practitioner_id;
+
+			$url = get_site_url() . '/dashboard/dietitions/dietition/?practitioner_id=' . $practitioner_id;
 			$html .= '<a class="el-practitioner-button button small-button" href="' . $url .'">View Dietition Profile</a>';
 				
 		}
@@ -626,9 +633,8 @@
 		$html = '';
 		
 		if($practitioner_id){
-
-			//TODO: Not hard code this in
-			$url = 'http://nutrition.dev.elevate360.com.au/dashboard/dietitions/dietition/?practitioner_id=' . $practitioner_id;
+			
+			$url = get_site_url() . '/dashboard/dietitions/dietition/?practitioner_id=' . $practitioner_id;
 			$html = $url;
 		}
 		
@@ -733,11 +739,11 @@
 					
 					
 					//Get a sample of topics the practitioner has currently been assigned
-					$html .= '<section class="field-section">';
-						$html .= '<h3>Current Topics</h3>';
-						$html .= '<p>Here are some of the topics this practitioner is currently involved in</p>';
-						$html .= '<b>TODO: Show public topics that have this practitioner in their thread</b>';
-					$html .= '</section>';
+					// $html .= '<section class="field-section">';
+						// $html .= '<h3>Current Topics</h3>';
+						// $html .= '<p>Here are some of the topics this practitioner is currently involved in</p>';
+						// $html .= '<b>TODO: Show public topics that have this practitioner in their thread</b>';
+					// $html .= '</section>';
 					
 					//Get hire button
 					$html .= '<section class="field-section">';
@@ -765,8 +771,7 @@
 		
 		if($user_id){
 			
-			//TODO: Not hard code this in
-			$url = 'http://nutrition.dev.elevate360.com.au/register/your-profile/?user_id=' . $user_id;
+			$url = $this->get_user_profile_link($user_id);
 			$html .= '<a class="el-user-button small-button button" href="' . $url .'">View User Profile</a>';
 				
 		}
@@ -776,6 +781,16 @@
 		
 	 }
 
+
+	/**
+	 * Get the URL for a single users profile
+	 */
+	public function get_user_profile_link($user_id){
+		
+		$url = get_site_url() . '/your-profile/?user_id=' . $user_id;
+
+		return $url;
+	}
 
 
 	/**
@@ -860,8 +875,9 @@
 				
 				$html .= '<div class="user-table">';
 				
-					$html .= '<p>Here is your profile information as seen by others.</p>';
-					$html .= '<p><a href="/profile-information/" class="button primary-button">Edit your profile</a></p>';
+					$html .= '<p>Here is the user profile information.</p>';
+					//Show edit button only if user is accessing own account
+					//$html .= '<p><a href="/profile-information/" class="button primary-button">Edit your profile</a></p>';
 					
 					//ACCOUNT
 
@@ -1104,8 +1120,8 @@
 					data-user-id="' . $user_id .'"
 					data-practitioner-id="' . $practitioner_id . '">Hire this practitioner</div>';
 				}else{
-					//already have prac, send them to their profile
 					
+					//already have prac, send them to their profile
 					$practitioner_id = $this->get_user_assigned_practitioner($user_id);
 					$practitioner_url = $this->get_practitioner_profile_link($practitioner_id);
 					
@@ -1534,9 +1550,9 @@
 					
 					//TODO: remove hard coded link
 					if($subscription_level == '1' || $subscription_level == '2'){
-						$profile_link = 'http://nutrition.dev.elevate360.com.au/register/your-profile/?user_id=' . $topic_user_id;
+						$profile_link = get_site_url() . '/your-profile/?user_id=' . $user_id;
 					}else if($subscription_level == '3'){
-						$profile_link = 'http://nutrition.dev.elevate360.com.au/dashboard/practitioners/practitioner/?practitioner_id=' . $topic_user_id;
+						$profile_link = get_site_url() . '/practitioners/practitioner/?practitioner_id=' . $topic_user_id;
 					}
 				
 					//is the post author or the assigned practitioner
@@ -2124,7 +2140,12 @@
 								//paid member but no practitioner yet
 								else{
 									$html .= '<div class="el-notice el-notice-warning">';
+
 										$html .= 'You have not chosen a practitioner yet so you cant create private topics';
+
+										$html .= '<p>You have not chosen a dietition yet so you cant create private topics</p>';
+										$html .= '<p><a class="button primary-button" href="' . get_site_url() . '/dashboard/dietitions">View Dietitions</a></p>';
+
 									$html .= '</div>';
 								}	
 							}
@@ -3351,6 +3372,8 @@
 
 	}
 
+
+
 	/**
 	 * Displays the profile for the user
 	 */
@@ -3364,7 +3387,6 @@
 		
 		
 	}
-	
 	
 	/**
 	 * Sends a notification to the original author of the topic when there is a new reply
@@ -3463,9 +3485,7 @@
 					$message .= '<p>You will need to log into the system to see this replace</p>';
 					$message .= '<p><a href="' . $topic_permalink . '" style="font-weight: 400; padding: 10px 20px; display: inline-block; cursor: pointer; border-radius: 5px; background: #19a3b3; color: #fff; font-size: 0.8rem; text-decoration: none;">View Topic</a></p>';	
 				$message .= '</section>';
-								
-				
-					
+									
 			 $message .= '</article>';
 			
 			//send mail
@@ -3485,7 +3505,230 @@
 		
 		return $response;
 	}
-	
+
+
+	/**
+	 * Sends out the practitioner assignment email when users (who have paid), successfully click to assign themselves a practitioner
+	 */
+	public function send_practitoner_assign_email($practitioner_id, $user_id){
+			
+		//prepare a response to determine success
+		$response = array();
+		$response['status'] = 'success';
+		$response['message'] = 'Emails to practitioner / user have been sent out';
+		
+		$practitioner = get_user_by('ID', $practitioner_id);
+		$user = get_user_by('ID', $user_id);
+		
+		if($practitioner instanceof WP_User && $user instanceof WP_User){
+			
+			
+			//practitioner info
+			$practitioner_email = $practitioner->data->user_email; 			
+			$practitioner_name = $practitioner->data->display_name;
+			$practitioner_profile_url = $this->get_practitioner_profile_link($practitioner_id);
+			
+			//user info
+			$user_email = $user->data->user_email; 			
+			$user_name = $user->data->display_name;
+			$user_profile_url = $this->get_user_profile_link($user_id);
+			
+			//SEND EMAIL TO PRACTITIONER
+			$to = $practitioner_email;
+			$subject = 'Healthy Imaging - New User Assigned to you '; 
+			$headers = array(
+				'Content-Type:text/html;charset=UTF-8'
+			);
+			$message = '';
+			
+			
+			$message .= '<article>';
+			
+				$message .= '<div class="email-header" style="text-align: center; background-color: #19a3b3; margin: 20px 0px; padding: 15px;">';
+					$message .= '<img src="' . plugin_dir_url(dirname(__FILE__)) . '/img/email/email-nutrition-portal-logo.png" style="width: auto; height: auto;" />';
+				$message .= '</div>';
+				
+				$message .= '<section class="content-wrap" style="text-align: center;">';
+					$message .= '<div style="width: 100%; max-width: 760px; text-align: left; display: inline-block;">';
+						$message .= '<h1>New user has been assigned to you</h1>';
+						$message .= '<div style="margin-bottom: 10px;">Hi <b>' . $practitioner_name . '</b></div>';
+						$message .= '<div style="margin-bottom: 10px;">A user has been assigned to you.</div>';
+						$message .= '<div style="margin-bottom: 10px;"><b>' . $user_name . '</b>\'s profile can be accessed via the button below.</div>';
+					$message .= '</div>';
+				$message .= '</section>';
+
+				//topic readmore
+				$message .= '<section class="topic-reply" style="text-align: center;">';
+					$message .= '<p>You will need to log into the system to see their proflile</p>';
+					$message .= '<p><a href="' . $user_profile_url . '" style="font-weight: 400; padding: 10px 20px; display: inline-block; cursor: pointer; border-radius: 5px; background: #19a3b3; color: #fff; font-size: 0.8rem; text-decoration: none;">View Topic</a></p>';	
+				$message .= '</section>';
+									
+			 $message .= '</article>';
+			
+			 //send mail
+			 $mail_success = wp_mail($to, $subject, $message, $headers);
+			 if(!$mail_success){
+			 	$response['status'] = 'error';
+			 	$response['message'] = 'Email could not be sent to the practitioner on user selection';
+			 }
+			 
+			 
+			 
+			//NOW SEND EMAIL TO USER
+			$to = $user_email;
+			$subject = 'Healthy Imaging - You\'ve been assigned a Nutritionist '; 
+			$headers = array(
+				'Content-Type:text/html;charset=UTF-8'
+			);
+			$message = '';
+			
+			$message .= '<article>';
+			
+				$message .= '<div class="email-header" style="text-align: center; background-color: #19a3b3; margin: 20px 0px; padding: 15px;">';
+					$message .= '<img src="' . plugin_dir_url(dirname(__FILE__)) . '/img/email/email-nutrition-portal-logo.png" style="width: auto; height: auto;" />';
+				$message .= '</div>';
+				
+				$message .= '<section class="content-wrap" style="text-align: center;">';
+					$message .= '<div style="width: 100%; max-width: 760px; text-align: left; display: inline-block;">';
+						$message .= '<h1>Your New Practitioner</h1>';
+						$message .= '<div style="margin-bottom: 10px;">Hi <b>' . $user_name . '</b></div>';
+						$message .= '<div style="margin-bottom: 10px;">You\'ve been assigned a Nutritionist on our system.</div>';
+						$message .= '<div style="margin-bottom: 10px;"><b>' . $practitioner_name . '</b>\'s profile can be accessed via the button below. You can find out more about them and how they can help you</div>';
+					$message .= '</div>';
+				$message .= '</section>';
+
+				//topic readmore
+				$message .= '<section class="topic-reply" style="text-align: center;">';
+					$message .= '<p>You will need to log into the system to see their proflile</p>';
+					$message .= '<p><a href="' . $practitioner_profile_url . '" style="font-weight: 400; padding: 10px 20px; display: inline-block; cursor: pointer; border-radius: 5px; background: #19a3b3; color: #fff; font-size: 0.8rem; text-decoration: none;">View Topic</a></p>';	
+				$message .= '</section>';
+									
+			 $message .= '</article>';
+			 
+			 //send mail
+			 $mail_success = wp_mail($to, $subject, $message, $headers);
+			 if(!$mail_success){
+			 	$response['status'] = 'error';
+			 	$response['message'] = 'Email could not be sent to the user about their practitioner subscription action';
+			 }
+
+		}
+		
+		return $response;
+		
+	}
+
+
+	/**
+	 * Email that is sent out to a practitioner when an assigned user creates a new private topic for them.
+	 * 
+	 * Used to notify the practitioner that they have a topic that needs to be addressed.
+	 */
+	public function send_new_topic_private_pracitioner($topic_id, $practitioner_id){
+		
+		$repsonse = array();
+		$response['status'] = 'success';
+		$response['message'] = 'send notification to practitioner about users new private topic';
+		
+		//topic & user info
+		$topic = get_post($topic_id);
+		$topic_author = get_user_by('ID', $topic->post_author);
+		
+		//practition info
+		$practitioner = get_user_by('ID', $practitioner_id);
+		
+		//proceed only if we have our info
+		if(($topic instanceof WP_Post) && ($topic_author instanceof WP_User) && ($practitioner instanceof WP_User)){
+			
+			$user_name = $topic_author->data->display_name;
+			$user_display_image = get_user_meta($topic_author->ID, 'rcp_user_profile_image', true);
+			if(!empty($user_display_image)){
+				$user_display_image = wp_get_attachment_image_src($user_display_image, 'thumbnail', false)[0];
+			}
+			$topic_title = $topic->post_title;
+			$topic_date = get_the_date('l, d/m/Y, h:i:a:s', $topic->ID);
+			$topic_content = $topic->post_content; 
+			if(!empty($topic_content)){
+				$topic_content = wp_trim_words($topic_content, '25', '...');
+			}
+			$topic_permalink = get_permalink($topic->ID);
+			
+				
+			$practitioner_email = $practitioner->data->user_email;
+			$pracittioner_name = $practitioner->data->display_name;
+			
+			
+				
+			//CREATE Email here 
+			$to = $practitioner_email;
+			$subject = 'Healthy Imaging - New Private Topic';
+			$headers = array(
+				'Content-Type:text/html;charset=UTF-8'
+			);
+			$message = '';
+			
+			
+			$message .= '<article>';
+			
+				$message .= '<div class="email-header" style="text-align: center; background-color: #19a3b3; margin: 20px 0px; padding: 15px;">';
+					$message .= '<img src="' . plugin_dir_url(dirname(__FILE__)) . '/img/email/email-nutrition-portal-logo.png" style="width: auto; height: auto;" />';
+				$message .= '</div>';
+				
+				$message .= '<section class="content-wrap" style="text-align: center;">';
+					$message .= '<div style="width: 100%; max-width: 760px; text-align: left; display: inline-block;">';
+						$message .= '<h1>New Healthy Imaging Topic Reply</h1>';
+						$message .= '<div style="margin-bottom: 10px;">Hi <b>' . $pracittioner_name . '</b></div>';
+						$message .= '<div style="margin-bottom: 10px;"><b>' . $user_name . '</b>, one of your assigned users has sent you a new private message.</div>';
+						$message .= '<div style="margin-bottom: 10px;">A summary of the topic is listed below </div>';
+					$message .= '</div>';
+				$message .= '</section>';
+				
+				
+				//Main topic reply
+				$message .= '<section class="topic-reply" style="text-align: center;">';
+					$message .= '<div style="background-color: #fffbea; border-left: solid 5px #ffdd00; padding: 15px; width: 100%; text-align: left; max-width: 760px; display: inline-block; margin: 15px 0px;">';
+						
+						//if has image
+						if(!empty($user_display_image)){
+							$message .= '<div>';
+								$message .= '<img src="' . $user_display_image . '" style="width: 30px; height: 30px; border-radius: 50%;"/>';
+							$message .= '</div>';
+						}
+						$message .= '<p><b>User:</b> ' . $user_name . '</p>';
+						$message .= '<p><b>Date:</b> ' . $topic_date . '</p>';
+						
+						$message .= '<div class="message-wrap">';
+							if(!empty($user_display_image)){
+								$html .= '<img src="' . $user_display_image . '"/>';
+							}
+							$message .= '<h3 class="title" style="margin-top: 10px;">' . $topic_title . '</h3>';
+							$message .= '<div class="message" style="margin-top: 15px;">' . $topic_content . '</div>';
+						$message .= '</div>';
+					$message .= '</div>';
+				$message .= '</section>';
+				
+				//topic readmore
+				$message .= '<section class="topic-reply" style="text-align: center;">';
+					$message .= '<p>You will need to log into the system to see this replace</p>';
+					$message .= '<p><a href="' . $topic_permalink . '" style="font-weight: 400; padding: 10px 20px; display: inline-block; cursor: pointer; border-radius: 5px; background: #19a3b3; color: #fff; font-size: 0.8rem; text-decoration: none;">View New Topic</a></p>';	
+				$message .= '</section>';
+									
+			 $message .= '</article>';
+			 
+			 
+			 //send mail
+			 $mail_success = wp_mail($to, $subject, $message, $headers);
+			 if(!$mail_success){
+			 	$response['status'] = 'error';
+			 	$response['message'] = 'Private Topic email could not be sent to the practitioner on submit';
+			 }
+			
+		}
+		
+		
+		return $response;
+	}
+
 	
 	//sets / gets singleton
 	public static function getInstance(){

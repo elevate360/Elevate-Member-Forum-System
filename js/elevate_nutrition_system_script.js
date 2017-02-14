@@ -162,7 +162,7 @@ jQuery(document).ready(function($){
 	$('body').on('click', '#el-hire-practitioner-button', function(){
 		
 		var hire_button = $(this);
-		var practitioner_info = $(this).parents('.el-practitioner');
+		var profile_info = $(this).parents('.profile');
 		
 		//pull user and practitioner id
 		var user_id = $(this).attr('data-user-id');
@@ -183,14 +183,15 @@ jQuery(document).ready(function($){
 			cache: false,
 			success: function(response){
 				
+				
 				var response = JSON.parse(response);
 				
 				//returned status was success
 				if(response.status == 'success'){
 					//append the returned success message below the practtitioner info
-					practitioner_info.after(response.content);
+					profile_info.append(response.content);
 					//remove button
-					hire_button.remove();
+					hire_button.remove();	
 					
 				}else{
 					console.log('Error Returned: ' + response.message);
@@ -234,7 +235,6 @@ jQuery(document).ready(function($){
 				if(response.status == 'success'){
 					
 					var topic_id = response.topic_id; 
-					//alert(response.message);
 					
 					//call second ajax call to get HTML
 					options = {
@@ -244,6 +244,10 @@ jQuery(document).ready(function($){
 					
 					//get the markup for the new topic entry and add it to the table
 					add_topic_markup_to_table_ajax(options);
+					
+					//clear values from form
+					$('#topic_title').val('');
+					$('#topic_content').val('');
 					
 				}
 				//returned error
@@ -284,6 +288,11 @@ jQuery(document).ready(function($){
 					//sucess, add topic to table
 					content = response.content;
 					$('#topic-table').prepend(content);
+					
+					//now scroll user to the top of the table
+					$('html, body').animate({
+						scrollTop: $('#topic-table').offset().top
+					});
 					
 				}else{
 					//alert("error getting topic content");
@@ -406,6 +415,7 @@ jQuery(document).ready(function($){
 				//call recursively forever
 				setTimeout(function(){
 					update_topic_with_replies_ajax(data, topic_table);
+
 				}, 50000); 
 				
 			}
